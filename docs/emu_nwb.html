@@ -1,0 +1,974 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="color-scheme" content="dark" />
+  <title>NWB LFP Loader + Behavior/MNI Alignment (MATLAB) — README</title>
+
+  <!-- Google Fonts (distinct display + readable body) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300,400,600,700&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <style>
+    :root{
+      /* Palette: midnight ink + fossil ivory + acid-cyan accents */
+      --bg0:#070A10;
+      --bg1:#0B1020;
+      --ink:#E9EDF7;
+      --muted:#A9B2C7;
+      --faint: rgba(233,237,247,.10);
+      --fainter: rgba(233,237,247,.07);
+      --line: rgba(233,237,247,.14);
+
+      --accent:#2DF3E0;
+      --accent2:#A6FF5E;
+      --warn:#FFCC66;
+      --danger:#FF4D7D;
+
+      --card: rgba(12, 16, 32, .62);
+      --card2: rgba(10, 13, 24, .68);
+      --shadow: 0 24px 90px rgba(0,0,0,.55);
+      --shadow2: 0 10px 40px rgba(0,0,0,.45);
+
+      --radius: 22px;
+      --radius2: 16px;
+
+      --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: "IBM Plex Sans", system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      --serif: "Fraunces", Georgia, Cambria, "Times New Roman", Times, serif;
+
+      --maxw: 1180px;
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      color:var(--ink);
+      font-family:var(--sans);
+      background:
+        radial-gradient(1200px 700px at 10% 5%, rgba(45,243,224,.16), transparent 58%),
+        radial-gradient(1100px 700px at 92% 12%, rgba(166,255,94,.12), transparent 55%),
+        radial-gradient(900px 600px at 70% 90%, rgba(255,77,125,.10), transparent 54%),
+        linear-gradient(180deg, var(--bg0), var(--bg1));
+      overflow-x:hidden;
+    }
+
+    /* Subtle grain (no external images) */
+    .grain{
+      pointer-events:none;
+      position:fixed;
+      inset:0;
+      opacity:.11;
+      mix-blend-mode:overlay;
+      background-image:
+        url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="220" height="220"><filter id="n"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="3" stitchTiles="stitch"/></filter><rect width="220" height="220" filter="url(%23n)" opacity="0.55"/></svg>');
+      background-size:220px 220px;
+      z-index:0;
+    }
+
+    a{color:inherit}
+    .wrap{
+      position:relative;
+      z-index:1;
+      max-width:var(--maxw);
+      margin:0 auto;
+      padding: clamp(18px, 3vw, 34px);
+      padding-bottom: 80px;
+    }
+
+    /* Top bar */
+    header{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:16px;
+      padding: 10px 0 28px;
+    }
+
+    .brand{
+      display:flex;
+      align-items:baseline;
+      gap:12px;
+      min-width:260px;
+    }
+    .sig{
+      display:inline-flex;
+      align-items:center;
+      gap:12px;
+    }
+    .mark{
+      width:44px;height:44px;
+      border-radius:14px;
+      background:
+        radial-gradient(15px 15px at 30% 30%, rgba(45,243,224,.95), rgba(45,243,224,.15) 60%, transparent 70%),
+        radial-gradient(18px 18px at 70% 70%, rgba(166,255,94,.85), rgba(166,255,94,.10) 62%, transparent 72%),
+        linear-gradient(135deg, rgba(233,237,247,.10), rgba(233,237,247,.02));
+      border: 1px solid rgba(233,237,247,.18);
+      box-shadow: var(--shadow2);
+      position:relative;
+      overflow:hidden;
+    }
+    .mark::after{
+      content:"";
+      position:absolute;
+      inset:-30%;
+      background: conic-gradient(from 180deg, rgba(45,243,224,.0), rgba(45,243,224,.35), rgba(166,255,94,.2), rgba(255,77,125,.18), rgba(45,243,224,.0));
+      filter: blur(10px);
+      opacity:.55;
+      transform: rotate(20deg);
+    }
+
+    .brand h1{
+      margin:0;
+      font-family:var(--serif);
+      font-weight:650;
+      letter-spacing:-0.02em;
+      font-size: clamp(18px, 2.2vw, 22px);
+      line-height:1.1;
+    }
+    .brand p{
+      margin:4px 0 0;
+      color:var(--muted);
+      font-size: 13px;
+      letter-spacing:.02em;
+    }
+
+    .top-actions{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+    }
+
+    .btn{
+      display:inline-flex;
+      align-items:center;
+      gap:10px;
+      border-radius: 999px;
+      padding: 10px 14px;
+      border: 1px solid rgba(233,237,247,.16);
+      background: linear-gradient(180deg, rgba(233,237,247,.08), rgba(233,237,247,.03));
+      backdrop-filter: blur(10px);
+      box-shadow: 0 10px 35px rgba(0,0,0,.35);
+      cursor:pointer;
+      text-decoration:none;
+      user-select:none;
+      transition: transform .18s ease, border-color .18s ease, background .18s ease, box-shadow .18s ease;
+      font-weight:600;
+      letter-spacing:.01em;
+      color:var(--ink);
+    }
+    .btn:hover{
+      transform: translateY(-1px);
+      border-color: rgba(45,243,224,.35);
+      box-shadow: 0 16px 50px rgba(0,0,0,.45);
+    }
+    .btn:active{ transform: translateY(0px) scale(.99); }
+
+    .btn .dot{
+      width:10px;height:10px;border-radius:50%;
+      background: var(--accent);
+      box-shadow: 0 0 0 4px rgba(45,243,224,.12), 0 0 22px rgba(45,243,224,.35);
+      flex:0 0 auto;
+    }
+    .btn.secondary .dot{ background: var(--accent2); box-shadow: 0 0 0 4px rgba(166,255,94,.12), 0 0 22px rgba(166,255,94,.30); }
+    .btn.ghost{
+      background: transparent;
+      box-shadow:none;
+    }
+
+    /* Hero */
+    .hero{
+      display:grid;
+      grid-template-columns: 1.15fr .85fr;
+      gap: clamp(16px, 2.2vw, 26px);
+      align-items:stretch;
+      padding-bottom: 22px;
+      position:relative;
+    }
+
+    @media (max-width: 980px){
+      .hero{ grid-template-columns: 1fr; }
+      header{ align-items:flex-start; flex-direction:column; }
+      .top-actions{ justify-content:flex-start; }
+      .brand{ min-width:unset; }
+    }
+
+    .panel{
+      border-radius: var(--radius);
+      border: 1px solid rgba(233,237,247,.14);
+      background: linear-gradient(180deg, rgba(12,16,32,.72), rgba(8,10,18,.55));
+      backdrop-filter: blur(12px);
+      box-shadow: var(--shadow);
+      position:relative;
+      overflow:hidden;
+    }
+
+    .panel::before{
+      content:"";
+      position:absolute;
+      inset:-2px;
+      background:
+        radial-gradient(600px 240px at 8% 0%, rgba(45,243,224,.12), transparent 60%),
+        radial-gradient(560px 260px at 95% 15%, rgba(166,255,94,.08), transparent 55%),
+        radial-gradient(600px 320px at 70% 120%, rgba(255,77,125,.08), transparent 58%);
+      pointer-events:none;
+    }
+
+    .panel > *{ position:relative; z-index:1; }
+
+    .hero-main{
+      padding: clamp(18px, 2.4vw, 28px);
+      min-height: 340px;
+    }
+
+    .kicker{
+      display:inline-flex;
+      align-items:center;
+      gap:10px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(233,237,247,.16);
+      background: linear-gradient(180deg, rgba(233,237,247,.08), rgba(233,237,247,.03));
+      color: var(--muted);
+      font-size: 12.5px;
+      letter-spacing:.08em;
+      text-transform: uppercase;
+    }
+    .kicker b{
+      color: var(--ink);
+      letter-spacing:.02em;
+      font-weight:650;
+    }
+
+    .hero-title{
+      margin: 14px 0 10px;
+      font-family: var(--serif);
+      font-weight: 650;
+      letter-spacing: -0.03em;
+      font-size: clamp(28px, 4.2vw, 52px);
+      line-height: 1.03;
+    }
+    .hero-sub{
+      margin: 0;
+      color: var(--muted);
+      font-size: clamp(15px, 1.6vw, 17px);
+      line-height: 1.55;
+      max-width: 64ch;
+    }
+
+    .meta-row{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      margin-top: 18px;
+    }
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:10px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      border: 1px solid rgba(233,237,247,.14);
+      background: rgba(0,0,0,.18);
+      backdrop-filter: blur(8px);
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .pill strong{ color: var(--ink); font-weight:650; }
+    .pill code{
+      font-family: var(--mono);
+      font-size: 12.5px;
+      color: rgba(233,237,247,.92);
+    }
+
+    .hero-side{
+      padding: 18px;
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+    }
+
+    .callout{
+      border-radius: 18px;
+      border: 1px solid rgba(233,237,247,.14);
+      background: linear-gradient(180deg, rgba(255,204,102,.10), rgba(0,0,0,.14));
+      padding: 14px 14px 12px;
+    }
+    .callout h3{
+      margin:0 0 6px;
+      font-family: var(--serif);
+      font-weight: 650;
+      letter-spacing:-.02em;
+      font-size: 16px;
+      display:flex;
+      align-items:center;
+      gap:10px;
+    }
+    .badge{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      width:22px;height:22px;
+      border-radius: 8px;
+      border: 1px solid rgba(233,237,247,.18);
+      background: rgba(0,0,0,.22);
+      font-family: var(--mono);
+      font-weight:600;
+      font-size: 12px;
+      color: var(--warn);
+      box-shadow: 0 10px 30px rgba(0,0,0,.35);
+    }
+    .callout p{
+      margin:0;
+      color: var(--muted);
+      font-size: 13.5px;
+      line-height:1.5;
+    }
+
+    .quicklinks{
+      border-radius: 18px;
+      border: 1px solid rgba(233,237,247,.14);
+      background: linear-gradient(180deg, rgba(45,243,224,.08), rgba(0,0,0,.14));
+      padding: 14px;
+    }
+    .quicklinks h3{
+      margin:0 0 10px;
+      font-family: var(--serif);
+      font-weight:650;
+      letter-spacing:-.02em;
+      font-size: 16px;
+    }
+    .toc{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+      margin:0;
+      padding:0;
+      list-style:none;
+    }
+    .toc a{
+      text-decoration:none;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding: 10px 12px;
+      border-radius: 14px;
+      border: 1px solid rgba(233,237,247,.12);
+      background: rgba(0,0,0,.16);
+      transition: transform .16s ease, border-color .16s ease, background .16s ease;
+      color: var(--ink);
+    }
+    .toc a span{
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+    .toc a:hover{
+      transform: translateX(2px);
+      border-color: rgba(45,243,224,.32);
+      background: rgba(45,243,224,.06);
+    }
+
+    /* Content grid */
+    .content{
+      margin-top: 18px;
+      display:grid;
+      grid-template-columns: 0.9fr 1.1fr;
+      gap: clamp(16px, 2.2vw, 26px);
+      align-items:start;
+    }
+    @media (max-width: 980px){
+      .content{ grid-template-columns: 1fr; }
+    }
+
+    section.card{
+      border-radius: var(--radius);
+      border: 1px solid rgba(233,237,247,.14);
+      background: linear-gradient(180deg, rgba(12,16,32,.62), rgba(6,8,14,.54));
+      backdrop-filter: blur(12px);
+      box-shadow: var(--shadow2);
+      overflow:hidden;
+      position:relative;
+    }
+    section.card::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      background:
+        linear-gradient(90deg, transparent, rgba(233,237,247,.05), transparent);
+      opacity:.7;
+      mask-image: linear-gradient(180deg, transparent 0%, rgba(0,0,0,.85) 16%, rgba(0,0,0,.85) 84%, transparent 100%);
+      pointer-events:none;
+    }
+    .card > *{ position:relative; z-index:1; }
+
+    .card .hd{
+      padding: 18px 18px 0;
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-start;
+      gap:12px;
+    }
+    .card h2{
+      margin:0;
+      font-family: var(--serif);
+      font-weight:650;
+      letter-spacing:-.02em;
+      font-size: 20px;
+    }
+    .card .tag{
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--muted);
+      border: 1px solid rgba(233,237,247,.14);
+      border-radius: 999px;
+      padding: 7px 10px;
+      background: rgba(0,0,0,.18);
+      white-space:nowrap;
+    }
+    .card .bd{
+      padding: 14px 18px 18px;
+      color: var(--muted);
+      line-height:1.6;
+      font-size: 14.5px;
+    }
+
+    .grid2{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:12px;
+      margin-top: 12px;
+    }
+    @media (max-width: 640px){ .grid2{ grid-template-columns: 1fr; } }
+
+    .mini{
+      border: 1px solid rgba(233,237,247,.12);
+      border-radius: 16px;
+      background: rgba(0,0,0,.16);
+      padding: 12px 12px 10px;
+    }
+    .mini h4{
+      margin:0 0 6px;
+      font-size: 13px;
+      letter-spacing:.02em;
+      color: rgba(233,237,247,.92);
+    }
+    .mini p{ margin:0; font-size: 13.5px; color: var(--muted); }
+
+    /* Code */
+    pre{
+      margin: 12px 0 0;
+      background: rgba(0,0,0,.30);
+      border: 1px solid rgba(233,237,247,.12);
+      border-radius: 16px;
+      padding: 14px;
+      overflow:auto;
+      box-shadow: inset 0 0 0 1px rgba(0,0,0,.24);
+    }
+    code{
+      font-family: var(--mono);
+      font-size: 12.75px;
+      line-height:1.6;
+      color: rgba(233,237,247,.95);
+    }
+
+    .codebar{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      margin-top: 12px;
+    }
+    .codebar .hint{
+      font-family: var(--mono);
+      font-size: 12px;
+      color: rgba(233,237,247,.70);
+    }
+    .copy{
+      border-radius: 999px;
+      padding: 9px 12px;
+      border: 1px solid rgba(233,237,247,.14);
+      background: linear-gradient(180deg, rgba(233,237,247,.08), rgba(233,237,247,.03));
+      backdrop-filter: blur(10px);
+      color: var(--ink);
+      font-weight:650;
+      font-size: 12.5px;
+      cursor:pointer;
+      transition: transform .16s ease, border-color .16s ease;
+      white-space:nowrap;
+    }
+    .copy:hover{ transform: translateY(-1px); border-color: rgba(166,255,94,.35); }
+    .copy:active{ transform: translateY(0px) scale(.99); }
+
+    /* Steps */
+    .steps{
+      counter-reset: step;
+      display:grid;
+      gap:10px;
+      margin: 12px 0 0;
+      padding:0;
+      list-style:none;
+    }
+    .steps li{
+      counter-increment: step;
+      border: 1px solid rgba(233,237,247,.12);
+      border-radius: 16px;
+      background: rgba(0,0,0,.16);
+      padding: 12px 12px 12px 50px;
+      position:relative;
+    }
+    .steps li::before{
+      content: counter(step);
+      position:absolute;
+      left: 12px; top: 12px;
+      width: 28px; height: 28px;
+      display:grid; place-items:center;
+      border-radius: 12px;
+      border: 1px solid rgba(233,237,247,.16);
+      background: rgba(45,243,224,.08);
+      color: var(--accent);
+      font-family: var(--mono);
+      font-weight: 700;
+      box-shadow: 0 10px 30px rgba(0,0,0,.30);
+    }
+    .steps b{ color: rgba(233,237,247,.94); }
+    .steps p{ margin:0; color: var(--muted); font-size: 13.5px; line-height:1.55; }
+
+    /* Reveal animations */
+    .reveal{
+      opacity:0;
+      transform: translateY(10px);
+      animation: rise .72s ease forwards;
+    }
+    .reveal.d2{ animation-delay: .08s; }
+    .reveal.d3{ animation-delay: .16s; }
+    .reveal.d4{ animation-delay: .24s; }
+    .reveal.d5{ animation-delay: .32s; }
+    @keyframes rise{
+      to{ opacity:1; transform: translateY(0); }
+    }
+
+    .io{
+      opacity:0;
+      transform: translateY(14px);
+      transition: opacity .6s ease, transform .6s ease;
+    }
+    .io.in{
+      opacity:1;
+      transform: translateY(0);
+    }
+
+    footer{
+      margin-top: 26px;
+      border-top: 1px solid rgba(233,237,247,.12);
+      padding-top: 18px;
+      color: rgba(233,237,247,.70);
+      display:flex;
+      flex-wrap:wrap;
+      gap:12px;
+      align-items:center;
+      justify-content:space-between;
+      font-size: 13px;
+    }
+    footer .sep{ opacity:.45; padding: 0 8px; }
+    footer a{
+      color: rgba(233,237,247,.90);
+      text-decoration:none;
+      border-bottom: 1px dashed rgba(233,237,247,.25);
+    }
+    footer a:hover{ border-bottom-color: rgba(45,243,224,.6); }
+
+    /* Skip link */
+    .skip{
+      position:absolute;
+      left:-999px; top: 10px;
+      padding:10px 12px;
+      border-radius: 12px;
+      background: rgba(0,0,0,.75);
+      border: 1px solid rgba(233,237,247,.18);
+      color: var(--ink);
+      text-decoration:none;
+      z-index:9999;
+    }
+    .skip:focus{ left: 10px; }
+
+    /* Small inline "kbd" */
+    kbd{
+      font-family: var(--mono);
+      font-size: 12px;
+      padding: 2px 7px;
+      border-radius: 10px;
+      border: 1px solid rgba(233,237,247,.16);
+      background: rgba(0,0,0,.24);
+      color: rgba(233,237,247,.92);
+    }
+  </style>
+</head>
+
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <div class="grain" aria-hidden="true"></div>
+
+  <div class="wrap">
+    <header class="reveal">
+      <div class="brand">
+        <div class="sig">
+          <div class="mark" aria-hidden="true"></div>
+          <div>
+            <h1>NWB LFP Loader + Behavior/MNI Alignment</h1>
+            <p>MATLAB script README for NWB (raw vs filtered LFP) + behavioral trial masks + MNI labels</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="top-actions">
+        <a class="btn ghost" href="#requirements"><span class="dot" aria-hidden="true"></span>Requirements</a>
+        <a class="btn ghost" href="#usage"><span class="dot" aria-hidden="true" style="background:var(--accent2)"></span>Usage</a>
+        <button class="btn secondary" id="btnCopyCite" type="button" aria-label="Copy suggested citation">
+          <span class="dot" aria-hidden="true"></span>Copy CITATION
+        </button>
+      </div>
+    </header>
+
+    <main id="main">
+      <div class="hero">
+        <div class="panel hero-main reveal d2">
+          <div class="kicker">
+            <b>README.md</b>
+            <span>•</span>
+            <span>Neurophysiology pipeline scaffold</span>
+          </div>
+
+          <h2 class="hero-title">Load NWB LFP, map macro-wire channels, align behavior, and attach MNI labels.</h2>
+          <p class="hero-sub">
+            This script demonstrates a clean starting point for working with NWB-based intracranial LFP recordings.
+            It supports two acquisition modes (<code>raw</code> vs <code>filt</code>), extracts macrowire channels,
+            aligns LFP time to behavioral trial events, and loads a channel table containing MNI/Freesurfer labels.
+          </p>
+
+          <div class="meta-row" role="list" aria-label="Project metadata">
+            <div class="pill" role="listitem"><strong>Data</strong> <code>.nwb</code> + <code>.mat</code></div>
+            <div class="pill" role="listitem"><strong>Sampling</strong> <code>4000 Hz raw</code> / <code>500 Hz filt</code></div>
+            <div class="pill" role="listitem"><strong>Interfaces</strong> <code>acquisition</code> / <code>processing:ephys</code></div>
+            <div class="pill" role="listitem"><strong>Channels</strong> macro contacts <code>MA_*</code></div>
+          </div>
+        </div>
+
+        <aside class="panel hero-side reveal d3" aria-label="Quick notes">
+          <div class="callout" id="requirements">
+            <h3><span class="badge">!</span> Version lock (important)</h3>
+            <p>
+              Use <b>MATLAB 2024a</b> with <b>MatNWB 2.5.0</b> for compatibility with the shown access patterns.
+              If your NWB schema differs, adjust object paths accordingly.
+            </p>
+          </div>
+
+          <div class="quicklinks" aria-label="Table of contents">
+            <h3>Contents</h3>
+            <ul class="toc">
+              <li><a href="#what-it-does">What this script does <span>#overview</span></a></li>
+              <li><a href="#io">Inputs / folder layout <span>#io</span></a></li>
+              <li><a href="#usage">Usage <span>#usage</span></a></li>
+              <li><a href="#outputs">Key variables <span>#outputs</span></a></li>
+              <li><a href="#notes">Notes & pitfalls <span>#notes</span></a></li>
+            </ul>
+          </div>
+        </aside>
+      </div>
+
+      <div class="content">
+        <section class="card io reveal d4" id="what-it-does" aria-labelledby="what-title">
+          <div class="hd">
+            <h2 id="what-title">What this script does</h2>
+            <div class="tag">overview</div>
+          </div>
+          <div class="bd">
+            <div class="grid2">
+              <div class="mini">
+                <h4>NWB load (raw vs filtered)</h4>
+                <p>
+                  Finds <code>*.nwb</code> files and selects either <code>*raw*</code> or <code>*filter*</code>.
+                  Loads timestamps + data from the appropriate NWB path.
+                </p>
+              </div>
+              <div class="mini">
+                <h4>Timebase handling</h4>
+                <p>
+                  For filtered data, timestamps are downsampled by <code>8</code> to match 500 Hz.
+                  Raw data keeps the native 4 kHz timestamps.
+                </p>
+              </div>
+              <div class="mini">
+                <h4>Macro-wire channel selection</h4>
+                <p>
+                  Pulls electrode labels and filters to <code>MA_</code> channels. Also loads
+                  location, hemisphere, and a short brain-area name per channel.
+                </p>
+              </div>
+              <div class="mini">
+                <h4>Behavior alignment + trial masks</h4>
+                <p>
+                  Loads a behavior MAT file with <code>eventTABLE</code>/<code>behavInfo</code>,
+                  then finds the LFP sample index for trial start and creates trial masks.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="card io reveal d5" id="io" aria-labelledby="io-title">
+          <div class="hd">
+            <h2 id="io-title">Inputs / expected folder layout</h2>
+            <div class="tag">setup</div>
+          </div>
+          <div class="bd">
+            <p style="margin-top:0">
+              The script expects two working directories: one containing NWB files, and one containing
+              behavior and MNI MAT files.
+            </p>
+
+            <pre aria-label="Suggested folder layout"><code>project/
+├─ nwb/                       # your NWB files
+│  ├─ subject01_filter.nwb
+│  ├─ subject01_raw.nwb
+│  └─ ...
+└─ behavior_mni/              # your MAT files
+   ├─ *Behavior*.mat          # contains eventTABLE, behavInfo
+   ├─ *MNI*.mat               # contains tmpCSV (channel table)
+   └─ ...</code></pre>
+
+            <ul class="steps" aria-label="Setup steps">
+              <li>
+                <p><b>Point <code>nwbLOC</code></b> to the directory containing <code>*.nwb</code>, then <code>cd</code> into it.</p>
+              </li>
+              <li>
+                <p><b>Set <code>toLOAD</code></b> to <code>'filt'</code> (500 Hz) or <code>'raw'</code> (4000 Hz).</p>
+              </li>
+              <li>
+                <p><b>Set the behavior/MNI directory</b> (the second <code>cd(...)</code>) to your MAT location.</p>
+              </li>
+            </ul>
+          </div>
+        </section>
+
+        <section class="card io" id="usage" aria-labelledby="usage-title">
+          <div class="hd">
+            <h2 id="usage-title">Usage</h2>
+            <div class="tag">how-to</div>
+          </div>
+          <div class="bd">
+            <p style="margin-top:0">
+              Minimal run sequence:
+            </p>
+
+            <pre id="codeUsage" aria-label="Minimal usage snippet"><code>%% Requirements
+% MATLAB 2024a + MatNWB 2.5.0
+
+%% 1) NWB directory
+nwbLOC = 'DIRECTORY FOR NWB FILES';
+cd(nwbLOC)
+
+%% 2) Choose what to load
+toLOAD = 'filt'; % 'raw'
+
+%% 3) Run the script sections:
+% - NWB load
+% - channel selection (MA_)
+% - behavior load + alignment
+% - MNI labels load</code></pre>
+
+            <div class="codebar">
+              <div class="hint">Tip: in MATLAB, run sections with <kbd>Ctrl</kbd> + <kbd>Enter</kbd></div>
+              <button class="copy" type="button" data-copy="#codeUsage">Copy snippet</button>
+            </div>
+
+            <div class="grid2" style="margin-top:14px">
+              <div class="mini">
+                <h4>When to use <code>toLOAD = 'raw'</code></h4>
+                <p>
+                  You need high temporal resolution (4 kHz), want to run your own filtering, or need to match raw acquisition timing.
+                </p>
+              </div>
+              <div class="mini">
+                <h4>When to use <code>toLOAD = 'filt'</code></h4>
+                <p>
+                  You want a lighter dataset (500 Hz) already high-pass filtered (0.5 Hz) and notch-filtered.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="card io" id="outputs" aria-labelledby="out-title">
+          <div class="hd">
+            <h2 id="out-title">Key variables created</h2>
+            <div class="tag">outputs</div>
+          </div>
+          <div class="bd">
+            <div class="grid2">
+              <div class="mini">
+                <h4>LFP time + data</h4>
+                <p>
+                  <code>LFP_time</code> (timestamps) and <code>LFP_dataD</code> (double voltage data).
+                </p>
+              </div>
+              <div class="mini">
+                <h4>Macro-wire channel metadata</h4>
+                <p>
+                  <code>MAchan</code>, <code>chanID2</code>, <code>chanHemi</code>, <code>chanSname</code>.
+                </p>
+              </div>
+              <div class="mini">
+                <h4>Behavior and alignment</h4>
+                <p>
+                  <code>eventTABLE</code>, <code>behavInfo</code>, <code>sampleINDEX</code> (start of Trial 1).
+                </p>
+              </div>
+              <div class="mini">
+                <h4>Trial masks</h4>
+                <p>
+                  <code>LA_trials</code>, <code>RA_trials</code>, <code>gamble_trials</code>, <code>alternative_trials</code>,
+                  plus outcome masks (loss/neutral/gain).
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="card io" id="notes" aria-labelledby="notes-title">
+          <div class="hd">
+            <h2 id="notes-title">Notes & common pitfalls</h2>
+            <div class="tag">gotchas</div>
+          </div>
+          <div class="bd">
+            <ul class="steps" aria-label="Notes">
+              <li>
+                <p>
+                  <b>Filtered timestamps:</b> the script assumes the NWB timestamps were stored at 4 kHz and must be downsampled by 8
+                  to match 500 Hz filtered data. Confirm this assumption for your dataset.
+                </p>
+              </li>
+              <li>
+                <p>
+                  <b>NWB paths differ by preprocessing:</b> filtered LFP is pulled from
+                  <code>processing/ecephys/LFP/MacroWireSeries</code>, while raw is pulled from
+                  <code>acquisition/MacroWireSeries</code>. If your NWB uses different names, update the field accessors.
+                </p>
+              </li>
+              <li>
+                <p>
+                  <b><code>checkIndex</code> / <code>eventTab</code> naming:</b> your snippet uses <code>checkIndex</code> and
+                  also references <code>eventTab</code> (vs <code>eventTABLE</code>). Make sure these variables exist and are consistent.
+                </p>
+              </li>
+              <li>
+                <p>
+                  <b>Channel label conventions:</b> macro contacts are detected via <code>contains(label,'MA_')</code>.
+                  Adjust the prefix if your electrode labels differ.
+                </p>
+              </li>
+            </ul>
+
+            <div class="mini" style="margin-top:12px">
+              <h4>Recommended README additions (optional)</h4>
+              <p>
+                Add a “Data dictionary” for <code>eventTABLE</code>/<code>behavInfo</code> fields and define all masks
+                (<code>checkIndex</code>, outcomes, etc.) so collaborators can reproduce trial selection.
+              </p>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <footer class="io" aria-label="Footer">
+        <div>
+          <span style="font-family:var(--mono)">MATLAB</span>
+          <span class="sep">•</span>
+          <span style="font-family:var(--mono)">MatNWB 2.5.0</span>
+          <span class="sep">•</span>
+          <span style="font-family:var(--mono)">NWB</span>
+        </div>
+        <div>
+          <a href="#main">Back to top</a>
+          <span class="sep">•</span>
+          <span>Generated as a GitHub-ready README page (single-file HTML preview)</span>
+        </div>
+      </footer>
+    </main>
+  </div>
+
+  <script>
+    // IntersectionObserver: scroll reveal
+    const ioEls = document.querySelectorAll('.io');
+    const obs = new IntersectionObserver((entries) => {
+      for (const e of entries){
+        if (e.isIntersecting){
+          e.target.classList.add('in');
+          obs.unobserve(e.target);
+        }
+      }
+    }, { threshold: 0.12 });
+    ioEls.forEach(el => obs.observe(el));
+
+    // Copy buttons
+    function copyText(text){
+      return navigator.clipboard.writeText(text);
+    }
+
+    document.querySelectorAll('[data-copy]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const sel = btn.getAttribute('data-copy');
+        const el = document.querySelector(sel);
+        const text = el ? el.innerText.trim() : '';
+        try{
+          await copyText(text);
+          const old = btn.textContent;
+          btn.textContent = 'Copied ✓';
+          setTimeout(() => btn.textContent = old, 900);
+        }catch(err){
+          btn.textContent = 'Copy failed';
+          setTimeout(() => btn.textContent = 'Copy snippet', 900);
+        }
+      });
+    });
+
+    // Suggested citation (editable)
+    const cite = [
+      "If you use this script, please cite/acknowledge:",
+      "NWB LFP Loader + Behavior/MNI Alignment (MATLAB).",
+      "MATLAB 2024a, MatNWB 2.5.0.",
+      "Access date: " + new Date().toISOString().slice(0,10) + "."
+    ].join("\n");
+
+    document.getElementById('btnCopyCite').addEventListener('click', async () => {
+      const btn = document.getElementById('btnCopyCite');
+      try{
+        await copyText(cite);
+        const old = btn.innerHTML;
+        btn.innerHTML = '<span class="dot" aria-hidden="true"></span>Copied CITATION';
+        setTimeout(() => btn.innerHTML = old, 900);
+      }catch(e){
+        btn.innerHTML = '<span class="dot" aria-hidden="true"></span>Copy failed';
+        setTimeout(() => btn.innerHTML = '<span class="dot" aria-hidden="true"></span>Copy CITATION', 900);
+      }
+    });
+
+    // Smooth anchor scrolling
+    document.querySelectorAll('a[href^="#"]').forEach(a => {
+      a.addEventListener('click', (e) => {
+        const id = a.getAttribute('href');
+        const t = document.querySelector(id);
+        if (!t) return;
+        e.preventDefault();
+        t.scrollIntoView({behavior:'smooth', block:'start'});
+        history.pushState(null, "", id);
+      });
+    });
+  </script>
+</body>
+</html>
