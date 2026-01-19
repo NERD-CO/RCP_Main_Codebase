@@ -1,0 +1,631 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="color-scheme" content="dark" />
+  <title>NWB LFP Loader + Behavior/MNI Alignment (MATLAB) — README</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root{
+      /* Palette: Technical Dark Mode (Neutral) */
+      --bg: #0d1117;
+      --card-bg: #161b22;
+      --card-border: #30363d;
+      
+      --text-main: #c9d1d9;
+      --text-head: #ffffff;
+      --text-muted: #8b949e;
+
+      --accent: #58a6ff;   /* Standard Link Blue */
+      --accent-dim: rgba(88, 166, 255, 0.15);
+      --success: #238636;  /* Green for Primary Actions */
+      --warn: #d29922;
+      --danger: #f85149;
+
+      --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      --sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+
+      --radius: 6px;
+      --maxw: 1080px;
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    
+    body{
+      margin:0;
+      color: var(--text-main);
+      font-family: var(--sans);
+      background: var(--bg);
+      line-height: 1.5;
+    }
+
+    a{ color: var(--accent); text-decoration:none; }
+    a:hover{ text-decoration:underline; }
+
+    .wrap{
+      max-width: var(--maxw);
+      margin: 0 auto;
+      padding: 40px 20px 80px;
+    }
+
+    /* Header */
+    header{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:20px;
+      padding-bottom: 40px;
+      border-bottom: 1px solid var(--card-border);
+      margin-bottom: 40px;
+    }
+
+    .brand h1{
+      margin:0;
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--text-head);
+    }
+    .brand p{
+      margin: 4px 0 0;
+      font-size: 14px;
+      color: var(--text-muted);
+    }
+
+    .top-actions{
+      display:flex;
+      gap: 12px;
+    }
+
+    /* Buttons: Standard Flat/Outlined */
+    .btn{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding: 6px 16px;
+      border-radius: var(--radius);
+      border: 1px solid var(--card-border);
+      background: var(--card-bg);
+      color: var(--text-main);
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background .2s, border-color .2s;
+    }
+    .btn:hover{
+      background: #21262d;
+      border-color: #8b949e;
+      text-decoration:none;
+    }
+    .btn.primary{
+      background: #238636;
+      border-color: rgba(240,246,252,0.1);
+      color: #fff;
+    }
+    .btn.primary:hover{ background: #2ea043; border-color: rgba(240,246,252,0.1); }
+    
+    .btn .dot{
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--text-muted);
+    }
+    .btn.primary .dot{ background: #fff; opacity:0.8; }
+
+    /* Hero Layout */
+    .hero{
+      display:grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 40px;
+      margin-bottom: 40px;
+    }
+    @media (max-width: 900px){ .hero{ grid-template-columns: 1fr; } }
+
+    .kicker{
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 12px;
+    }
+    .hero-title{
+      margin: 0 0 16px;
+      font-size: 32px;
+      font-weight: 700;
+      color: var(--text-head);
+      line-height: 1.25;
+    }
+    .hero-sub{
+      margin: 0 0 24px;
+      font-size: 16px;
+      color: var(--text-muted);
+      max-width: 65ch;
+    }
+
+    .meta-row{
+      display:flex;
+      flex-wrap:wrap;
+      gap: 8px;
+    }
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap: 8px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      border: 1px solid var(--card-border);
+      background: rgba(110,118,129,0.1);
+      font-size: 12px;
+      color: var(--text-main);
+    }
+    .pill code{
+      font-family: var(--mono);
+      background: rgba(110,118,129,0.2);
+      padding: 2px 4px;
+      border-radius: 4px;
+    }
+
+    /* Side Panel */
+    .hero-side{
+      display:flex;
+      flex-direction:column;
+      gap: 20px;
+    }
+    .callout{
+      padding: 16px;
+      border-radius: var(--radius);
+      border: 1px solid rgba(210, 153, 34, 0.4);
+      background: rgba(210, 153, 34, 0.1);
+    }
+    .callout h3{
+      margin: 0 0 8px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #e3b341;
+      display:flex;
+      align-items:center;
+      gap:8px;
+    }
+    .callout p{ margin:0; font-size: 13px; color: var(--text-main); }
+
+    .toc{
+      padding: 20px;
+      border-radius: var(--radius);
+      border: 1px solid var(--card-border);
+      background: var(--card-bg);
+    }
+    .toc h3{
+      margin: 0 0 12px;
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+    }
+    .toc ul{
+      list-style:none;
+      padding:0; margin:0;
+    }
+    .toc li{ margin-bottom: 8px; }
+    .toc a{
+      display:block;
+      font-size: 14px;
+      color: var(--accent);
+    }
+
+    /* Main Content Cards */
+    .card{
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius);
+      background: var(--card-bg);
+      margin-bottom: 24px;
+      overflow: hidden;
+    }
+    
+    .card-hd{
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--card-border);
+      display:flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #21262d;
+    }
+    .card-hd h2{
+      margin:0;
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-head);
+    }
+    .card-tag{
+      font-size: 11px;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--text-muted);
+      letter-spacing: 0.05em;
+      border: 1px solid var(--card-border);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    .card-bd{ padding: 20px; }
+
+    /* Grid for info blocks */
+    .grid2{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-top: 16px;
+    }
+    @media(max-width:600px){ .grid2{ grid-template-columns: 1fr; } }
+
+    .mini-block{
+      padding: 16px;
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius);
+      background: #0d1117;
+    }
+    .mini-block h4{
+      margin: 0 0 8px;
+      font-size: 14px;
+      color: var(--text-head);
+    }
+    .mini-block p{
+      margin:0;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    /* Code Blocks */
+    pre{
+      background: #0d1117;
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius);
+      padding: 16px;
+      overflow-x: auto;
+      margin: 16px 0;
+    }
+    code{
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--text-main);
+    }
+
+    .code-actions{
+      display:flex;
+      justify-content:flex-end;
+      margin-top: -8px;
+      margin-bottom: 16px;
+    }
+    .copy-link{
+      font-size: 12px;
+      color: var(--text-muted);
+      cursor: pointer;
+      background: none;
+      border: none;
+      padding: 0;
+    }
+    .copy-link:hover{ color: var(--accent); }
+
+    /* Steps List */
+    .steps{
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .steps li{
+      display: flex;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .step-num{
+      flex: 0 0 24px;
+      height: 24px;
+      background: var(--card-border);
+      color: var(--text-head);
+      border-radius: 50%;
+      font-size: 12px;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 2px;
+    }
+    .step-content p{ margin: 0; font-size: 14px; color: var(--text-main); }
+    .step-content strong{ color: var(--text-head); }
+
+    /* Footer */
+    footer{
+      margin-top: 60px;
+      padding-top: 20px;
+      border-top: 1px solid var(--card-border);
+      font-size: 12px;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+    }
+    
+    kbd{
+      font-family: var(--mono);
+      border: 1px solid var(--card-border);
+      background: rgba(110,118,129,0.1);
+      border-radius: 3px;
+      padding: 2px 4px;
+      font-size: 11px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    
+    <header>
+      <div class="brand">
+        <h1>NWB LFP Loader + Behavior/MNI Alignment</h1>
+        <p>MATLAB script documentation</p>
+      </div>
+      <div class="top-actions">
+        <a class="btn" href="#usage">Usage</a>
+        <button class="btn primary" id="btnCopyCite" type="button">
+          Copy Citation
+        </button>
+      </div>
+    </header>
+
+    <main id="main">
+      <div class="hero">
+        <div class="hero-main">
+          <div class="kicker">README.md • Pipeline Scaffold</div>
+          <h2 class="hero-title">Load NWB LFP, map macro-wire channels, align behavior, and attach MNI labels.</h2>
+          <p class="hero-sub">
+            This script demonstrates a clean starting point for working with NWB-based intracranial LFP recordings.
+            It supports two acquisition modes (<code>raw</code> vs <code>filt</code>), extracts macrowire channels,
+            aligns LFP time to behavioral trial events, and loads a channel table containing MNI/Freesurfer labels.
+          </p>
+
+          <div class="meta-row">
+            <div class="pill"><strong>Data</strong> <code>.nwb</code> + <code>.mat</code></div>
+            <div class="pill"><strong>Sampling</strong> <code>4000 Hz raw</code> / <code>500 Hz filt</code></div>
+            <div class="pill"><strong>Interfaces</strong> <code>acquisition</code> / <code>processing:ephys</code></div>
+          </div>
+        </div>
+
+        <div class="hero-side">
+          <div class="callout">
+            <h3>! Version Lock</h3>
+            <p>Use <b>MATLAB 2024a</b> with <b>MatNWB 2.5.0</b> for compatibility. If your NWB schema differs, adjust object paths.</p>
+          </div>
+
+          <div class="toc">
+            <h3>Contents</h3>
+            <ul>
+              <li><a href="#what-it-does">Overview</a></li>
+              <li><a href="#io">Inputs & Setup</a></li>
+              <li><a href="#usage">Usage</a></li>
+              <li><a href="#outputs">Key Variables</a></li>
+              <li><a href="#notes">Notes & Pitfalls</a></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <section class="card" id="what-it-does">
+        <div class="card-hd">
+          <h2>What this script does</h2>
+          <span class="card-tag">Overview</span>
+        </div>
+        <div class="card-bd">
+          <div class="grid2">
+            <div class="mini-block">
+              <h4>NWB load (raw vs filtered)</h4>
+              <p>Finds <code>*.nwb</code> files and selects either <code>*raw*</code> or <code>*filter*</code>. Loads timestamps + data from the appropriate NWB path.</p>
+            </div>
+            <div class="mini-block">
+              <h4>Timebase handling</h4>
+              <p>For filtered data, timestamps are downsampled by <code>8</code> to match 500 Hz. Raw data keeps the native 4 kHz timestamps.</p>
+            </div>
+            <div class="mini-block">
+              <h4>Macro-wire channel selection</h4>
+              <p>Pulls electrode labels and filters to <code>MA_</code> channels. Also loads location, hemisphere, and a short brain-area name per channel.</p>
+            </div>
+            <div class="mini-block">
+              <h4>Behavior alignment + trial masks</h4>
+              <p>Loads a behavior MAT file with <code>eventTABLE</code>/<code>behavInfo</code>, then finds the LFP sample index for trial start.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card" id="io">
+        <div class="card-hd">
+          <h2>Inputs / Expected folder layout</h2>
+          <span class="card-tag">Setup</span>
+        </div>
+        <div class="card-bd">
+          <p style="margin-top:0">The script expects two working directories: one containing NWB files, and one containing behavior and MNI MAT files.</p>
+          
+          <pre><code>project/
+├─ nwb/                      # your NWB files
+│  ├─ subject01_filter.nwb
+│  ├─ subject01_raw.nwb
+│  └─ ...
+└─ behavior_mni/             # your MAT files
+   ├─ *Behavior*.mat         # contains eventTABLE, behavInfo
+   ├─ *MNI*.mat              # contains tmpCSV (channel table)
+   └─ ...</code></pre>
+
+          <ul class="steps">
+            <li>
+              <div class="step-num">1</div>
+              <div class="step-content">
+                <p><strong>Point <code>nwbLOC</code></strong> to the directory containing <code>*.nwb</code>, then <code>cd</code> into it.</p>
+              </div>
+            </li>
+            <li>
+              <div class="step-num">2</div>
+              <div class="step-content">
+                <p><strong>Set <code>toLOAD</code></strong> to <code>'filt'</code> (500 Hz) or <code>'raw'</code> (4000 Hz).</p>
+              </div>
+            </li>
+            <li>
+              <div class="step-num">3</div>
+              <div class="step-content">
+                <p><strong>Set the behavior/MNI directory</strong> (the second <code>cd(...)</code>) to your MAT location.</p>
+              </div>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="card" id="usage">
+        <div class="card-hd">
+          <h2>Usage</h2>
+          <span class="card-tag">How-To</span>
+        </div>
+        <div class="card-bd">
+          <p style="margin-top:0">Minimal run sequence:</p>
+          
+          <pre id="codeUsage"><code>%% Requirements
+% MATLAB 2024a + MatNWB 2.5.0
+
+%% 1) NWB directory
+nwbLOC = 'DIRECTORY FOR NWB FILES';
+cd(nwbLOC)
+
+%% 2) Choose what to load
+toLOAD = 'filt'; % 'raw'
+
+%% 3) Run the script sections:
+% - NWB load
+% - channel selection (MA_)
+% - behavior load + alignment
+% - MNI labels load</code></pre>
+          <div class="code-actions">
+            <button class="copy-link" data-copy="#codeUsage">Copy snippet</button>
+          </div>
+
+          <div class="grid2">
+            <div class="mini-block">
+              <h4>When to use <code>toLOAD = 'raw'</code></h4>
+              <p>You need high temporal resolution (4 kHz), want to run your own filtering, or need to match raw acquisition timing.</p>
+            </div>
+            <div class="mini-block">
+              <h4>When to use <code>toLOAD = 'filt'</code></h4>
+              <p>You want a lighter dataset (500 Hz) already high-pass filtered (0.5 Hz) and notch-filtered.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card" id="outputs">
+        <div class="card-hd">
+          <h2>Key variables created</h2>
+          <span class="card-tag">Outputs</span>
+        </div>
+        <div class="card-bd">
+          <div class="grid2">
+            <div class="mini-block">
+              <h4>LFP time + data</h4>
+              <p><code>LFP_time</code> (timestamps) and <code>LFP_dataD</code> (double voltage data).</p>
+            </div>
+            <div class="mini-block">
+              <h4>Macro-wire channel metadata</h4>
+              <p><code>MAchan</code>, <code>chanID2</code>, <code>chanHemi</code>, <code>chanSname</code>.</p>
+            </div>
+            <div class="mini-block">
+              <h4>Behavior and alignment</h4>
+              <p><code>eventTABLE</code>, <code>behavInfo</code>, <code>sampleINDEX</code> (start of Trial 1).</p>
+            </div>
+            <div class="mini-block">
+              <h4>Trial masks</h4>
+              <p><code>LA_trials</code>, <code>RA_trials</code>, <code>gamble_trials</code>, plus outcome masks (loss/neutral/gain).</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card" id="notes">
+        <div class="card-hd">
+          <h2>Notes & Common Pitfalls</h2>
+          <span class="card-tag">Important</span>
+        </div>
+        <div class="card-bd">
+          <ul class="steps">
+            <li>
+              <div class="step-num">!</div>
+              <div class="step-content">
+                <p><strong>Filtered timestamps:</strong> The script assumes the NWB timestamps were stored at 4 kHz and must be downsampled by 8 to match 500 Hz filtered data.</p>
+              </div>
+            </li>
+            <li>
+              <div class="step-num">!</div>
+              <div class="step-content">
+                <p><strong>NWB paths differ:</strong> Filtered LFP is pulled from <code>processing/ecephys/LFP</code>, while raw is pulled from <code>acquisition/MacroWireSeries</code>.</p>
+              </div>
+            </li>
+            <li>
+              <div class="step-num">!</div>
+              <div class="step-content">
+                <p><strong>Naming consistency:</strong> Your snippet uses <code>checkIndex</code> and <code>eventTab</code>. Ensure these match your MAT file variables.</p>
+              </div>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+    </main>
+
+    <footer>
+      <div>MATLAB • MatNWB 2.5.0 • NWB</div>
+      <div>Generated README</div>
+    </footer>
+  </div>
+
+  <script>
+    // Copy functionality
+    function copyText(text){ return navigator.clipboard.writeText(text); }
+
+    document.querySelectorAll('[data-copy]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const sel = btn.getAttribute('data-copy');
+        const el = document.querySelector(sel);
+        const text = el ? el.innerText.trim() : '';
+        try{
+          await copyText(text);
+          const old = btn.textContent;
+          btn.textContent = 'Copied ✓';
+          setTimeout(() => btn.textContent = old, 1500);
+        }catch(err){
+          console.error('Copy failed');
+        }
+      });
+    });
+
+    // Citation
+    const cite = "NWB LFP Loader + Behavior/MNI Alignment (MATLAB).\nMATLAB 2024a, MatNWB 2.5.0.\nAccess date: " + new Date().toISOString().slice(0,10) + ".";
+    
+    document.getElementById('btnCopyCite').addEventListener('click', async () => {
+      const btn = document.getElementById('btnCopyCite');
+      await copyText(cite);
+      const old = btn.innerText;
+      btn.innerText = 'Copied';
+      setTimeout(() => btn.innerText = old, 1500);
+    });
+
+    // Smooth Scroll
+    document.querySelectorAll('a[href^="#"]').forEach(a => {
+      a.addEventListener('click', (e) => {
+        const id = a.getAttribute('href');
+        const t = document.querySelector(id);
+        if (t) {
+          e.preventDefault();
+          t.scrollIntoView({behavior:'smooth', block:'start'});
+          history.pushState(null, "", id);
+        }
+      });
+    });
+  </script>
+</body>
+</html>
